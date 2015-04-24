@@ -3,10 +3,10 @@
 the_ROM_image:
 {
 
-	[bootloader] ../project_1/project_1.sdk/SDK/SDK_Export/fsbl/Debug/fsbl.elf
-               ../project_1/project_1.sdk/SDK/SDK_Export/hw/design_1_wrapper.bit
-	             ../project_1/project_1.sdk/SDK/SDK_Export/app_cpu0/Debug/app_cpu0.elf
-	             ../project_1/project_1.sdk/SDK/SDK_Export/app_cpu1/Debug/app_cpu1.elf
+	[bootloader] ../../src/scripts/project_1/project_1.sdk/SDK/SDK_Export/fsbl/Debug/fsbl.elf
+               ../../src/scripts/project_1/project_1.sdk/SDK/SDK_Export/hw/design_1_wrapper.bit
+	             ../../src/scripts/project_1/project_1.sdk/SDK/SDK_Export/app_cpu0/Debug/app_cpu0.elf
+	             ../../src/scripts/project_1/project_1.sdk/SDK/SDK_Export/app_cpu1/Debug/app_cpu1.elf
 
 }
 

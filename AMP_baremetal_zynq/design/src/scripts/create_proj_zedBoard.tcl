@@ -13,11 +13,11 @@ set_property board_part em.avnet.com:zed:part0:1.0 $obj
 # Set the directory path for the new project
 set proj_dir [get_property directory $obj]
 
-set_property ip_repo_paths  $proj_dir/../../src/pcores [current_fileset]
+set_property ip_repo_paths  $proj_dir/../../pcores [current_fileset]
 update_ip_catalog
 
 #create BD
-source $proj_dir/../../src/scripts/create_bd_zedBoard.tcl
+source $proj_dir/../../scripts/create_bd_zedBoard.tcl
 validate_bd_design
 save_bd_design
 
