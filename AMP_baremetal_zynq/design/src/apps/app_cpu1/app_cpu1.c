@@ -29,6 +29,9 @@
 #include "xil_exception.h"
 #include "xscugic.h"
 #include "sleep.h"
+// New
+#include "xgpio.h"
+#define CUSTOM_EXAMPLE
 
 
 /************************** Constant Definitions ****************************/
@@ -42,6 +45,12 @@
 
 #define COMM_VAL    (*(volatile unsigned long *)(0xFFFF0000))
 
+//New
+#define BTNS_DEVICE_ID		XPAR_AXI_GPIO_0_DEVICE_ID
+#define INTC_GPIO_INTERRUPT_ID XPAR_FABRIC_AXI_GPIO_0_IP2INTC_IRPT_INTR
+#define BTN_INT 			XGPIO_IR_CH1_MASK
+
+
 /**************************** Type Definitions ******************************/
 /**
  * This typedef contains configuration information for the device driver.
@@ -50,6 +59,11 @@ typedef struct {
 	u16 DeviceId;		/**< Unique ID of device */
 	u32 BaseAddress;	/**< Base address of the device */
 } Pl_Config;
+
+//New
+XGpio BTNInst;
+XScuGic INTCInst;
+static int btn_value;
 
 
 /**
@@ -86,6 +100,15 @@ static int  SetupIntrSystem(INTC *IntcInstancePtr, XPlIrq *PeriphInstancePtr, u1
 static void DisableIntrSystem(INTC *IntcInstancePtr, u16 IntrId);
 static void PlIntrHandler(void *CallBackRef);
 
+//New
+//----------------------------------------------------
+// PROTOTYPE FUNCTIONS
+//----------------------------------------------------
+static void BTN_Intr_Handler(void *baseaddr_p);
+static int InterruptSystemSetup(XScuGic *XScuGicInstancePtr);
+static int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr);
+
+
 
 /*****************************************************************************/
 /**
@@ -115,12 +138,12 @@ int main()
 
     irq_count = 0;
 
+    #ifdef ORIGINAL_EXAMPLE
     // Initialize driver instance for PL IRQ
     PlIrqInstancePtr.Config.DeviceId = PL_IRQ_ID;
     PlIrqInstancePtr.Config.BaseAddress = IRQ_PCORE_GEN_BASE;
     PlIrqInstancePtr.IsReady = XIL_COMPONENT_IS_READY;
     PlIrqInstancePtr.IsStarted = 0;
-
 
 	/*
 	 * Connect the PL IRQ to the interrupt subsystem so that interrupts
@@ -132,6 +155,24 @@ int main()
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
+	#endif
+
+	#ifdef CUSTOM_EXAMPLE
+	int status;
+	//----------------------------------------------------
+	// INITIALIZE THE PERIPHERALS & SET DIRECTIONS OF GPIO
+	//----------------------------------------------------
+	// Initialise Push Buttons
+	status = XGpio_Initialize(&BTNInst, BTNS_DEVICE_ID);
+	if(status != XST_SUCCESS) return XST_FAILURE;
+	// Set all buttons direction to inputs
+	XGpio_SetDataDirection(&BTNInst, 1, 0xFF);
+
+	// Initialize interrupt controller
+	status = IntcInitFunction(INTC_DEVICE_ID, &BTNInst);
+	if(status != XST_SUCCESS) return XST_FAILURE;
+
+	#endif
 
      while(1){
      	while(COMM_VAL == 0){};
@@ -290,5 +331,85 @@ static void DisableIntrSystem(INTC *IntcInstancePtr, u16 IntrId)
 	/* Disconnect the interrupt */
 	XScuGic_Disable(IntcInstancePtr, IntrId);
 	XScuGic_Disconnect(IntcInstancePtr, IntrId);
+}
+
+
+// New
+
+//----------------------------------------------------
+// INTERRUPT HANDLER FUNCTIONS
+// - called by the timer, button interrupt, performs
+// - LED flashing
+//----------------------------------------------------
+
+
+void BTN_Intr_Handler(void *InstancePtr)
+{
+	// Disable GPIO interrupts
+	XGpio_InterruptDisable(&BTNInst, BTN_INT);
+	// Ignore additional button presses
+	if ((XGpio_InterruptGetStatus(&BTNInst) & BTN_INT) !=
+			BTN_INT) {
+			return;
+		}
+	btn_value = XGpio_DiscreteRead(&BTNInst, 1);
+	// All external buttons (NSWE) notify main of interrupt,
+	// if centre button pressed the main is not notified
+	if(btn_value != 1) irq_count = 1; // Notify
+	else irq_count = 0; //Not notify
+    (void)XGpio_InterruptClear(&BTNInst, BTN_INT);
+    // Enable GPIO interrupts
+    XGpio_InterruptEnable(&BTNInst, BTN_INT);
+}
+
+//----------------------------------------------------
+// INITIAL SETUP FUNCTIONS
+//----------------------------------------------------
+
+int InterruptSystemSetup(XScuGic *XScuGicInstancePtr)
+{
+	// Enable interrupt
+	XGpio_InterruptEnable(&BTNInst, BTN_INT);
+	XGpio_InterruptGlobalEnable(&BTNInst);
+
+	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
+			 	 	 	 	 	 (Xil_ExceptionHandler)XScuGic_InterruptHandler,
+			 	 	 	 	 	 XScuGicInstancePtr);
+	Xil_ExceptionEnable();
+
+
+	return XST_SUCCESS;
+
+}
+
+int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr)
+{
+	XScuGic_Config *IntcConfig;
+	int status;
+
+	// Interrupt controller initialisation
+	IntcConfig = XScuGic_LookupConfig(DeviceId);
+	status = XScuGic_CfgInitialize(&INTCInst, IntcConfig, IntcConfig->CpuBaseAddress);
+	if(status != XST_SUCCESS) return XST_FAILURE;
+
+	// Call to interrupt setup
+	status = InterruptSystemSetup(&INTCInst);
+	if(status != XST_SUCCESS) return XST_FAILURE;
+
+	// Connect GPIO interrupt to handler
+	status = XScuGic_Connect(&INTCInst,
+					  	  	 INTC_GPIO_INTERRUPT_ID,
+					  	  	 (Xil_ExceptionHandler)BTN_Intr_Handler,
+					  	  	 (void *)GpioInstancePtr);
+	if(status != XST_SUCCESS) return XST_FAILURE;
+
+	// Enable GPIO interrupts interrupt
+	XGpio_InterruptEnable(GpioInstancePtr, 1);
+	XGpio_InterruptGlobalEnable(GpioInstancePtr);
+
+	// Enable GPIO and timer interrupts in the controller
+	XScuGic_Enable(&INTCInst, INTC_GPIO_INTERRUPT_ID);
+
+	return XST_SUCCESS;
 }
 

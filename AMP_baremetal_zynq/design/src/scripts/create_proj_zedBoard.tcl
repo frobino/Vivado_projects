@@ -17,7 +17,7 @@ set_property ip_repo_paths  $proj_dir/../../pcores [current_fileset]
 update_ip_catalog
 
 #create BD
-source $proj_dir/../../scripts/create_bd_zedBoard.tcl
+source $proj_dir/../../scripts/create_bd_zedBoard_2.tcl
 validate_bd_design
 save_bd_design
 
