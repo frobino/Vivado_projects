@@ -17,3 +17,21 @@ NOTE:
 Serial config: 115000 8N1
 
 TODO: study the PBL and linker files
+
+BSP notes
+===============
+
+1]
+  * folder AMP_baremetal_zynq/design/src/sdk_repo/bsp/standalone_v4_91/src/cortexa9/gcc in THIS PROJECT
+  IS EQUIVALENT TO
+  * folder <prj_name>/<prj_name>.sdk/<sw_prj_name>_bsp/ps7_cortexa9_0/libsrc/standalone_v4_2/src
+  * These two folder contains the boot.S file, which is very similar but not completely...
+  * The only "valuable" files differing are boot.S and asm_vectors.S
+
+2]
+  * the files present in folder <prj_name>/<prj_name>.sdk/<sw_prj_name>_bsp/ps7_cortexa9_0/libsrc/standalone_v4_2/src
+  which are missing in AMP_baremetal_zynq/design/src/sdk_repo/bsp/standalone_v4_91/src/cortexa9/gcc are present in
+  AMP_baremetal_zynq/design/src/sdk_repo/bsp/standalone_v4_91/src/cortexa9/ ... looks like some file directories have been mixed
+
+2]
+  * note that the folders contain a xil-crt0.s
